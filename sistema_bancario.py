@@ -5,9 +5,17 @@ from datetime import datetime
 
 def log_transacoes(func):
     def wrapper(*args, **kwargs):
-        print(f"[LOG] Executando {func.__name__} com args={args}, kwargs={kwargs}")
+        data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        nome_funcao = func.__name__
+        argumentos = f"args={args}, kwargs={kwargs}"
         resultado = func(*args, **kwargs)
-        print(f"[LOG] Finalizou {func.__name__}")
+        retorno = f"retorno={resultado}"
+
+        log_linha = f"[{data_hora}] {nome_funcao} | {argumentos} | {retorno}\n"
+
+        with open("log.txt", "a", encoding="utf-8") as f:
+            f.write(log_linha)
+
         return resultado
     return wrapper
 
