@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 # ===================== DECORADOR DE LOG =====================
 
@@ -22,16 +23,18 @@ class Deposito(Transacao):
         self.valor = valor
 
     def registrar(self, conta):
-        if conta.depositar(self.valor):
-            conta.historico.adicionar_transacao(self)
+        if conta.verificar_limite_diario():
+            if conta.depositar(self.valor):
+                conta.historico.adicionar_transacao(self)
 
 class Saque(Transacao):
     def __init__(self, valor):
         self.valor = valor
 
     def registrar(self, conta):
-        if conta.sacar(self.valor):
-            conta.historico.adicionar_transacao(self)
+        if conta.verificar_limite_diario():
+            if conta.sacar(self.valor):
+                conta.historico.adicionar_transacao(self)
 
 # ===================== HISTORICO =====================
 
@@ -42,8 +45,13 @@ class Historico:
     def adicionar_transacao(self, transacao):
         self.transacoes.append({
             "tipo": transacao.__class__.__name__,
-            "valor": transacao.valor
+            "valor": transacao.valor,
+            "data": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         })
+
+    def contar_transacoes_do_dia(self):
+        hoje = datetime.now().date()
+        return sum(1 for t in self.transacoes if datetime.strptime(t["data"], "%d/%m/%Y %H:%M:%S").date() == hoje)
 
 # ===================== CONTA E CONTA CORRENTE =====================
 
@@ -75,6 +83,13 @@ class Conta:
             return False
         self.saldo += valor
         print(f"Depósito de R$ {valor:.2f} realizado.")
+        return True
+
+    def verificar_limite_diario(self):
+        total_hoje = self.historico.contar_transacoes_do_dia()
+        if total_hoje >= 10:
+            print("Limite de 10 transações diárias atingido para esta conta.")
+            return False
         return True
 
 class ContaCorrente(Conta):
@@ -252,7 +267,8 @@ def exibir_extrato():
         for transacao in conta.historico.transacoes:
             tipo = transacao["tipo"]
             valor = transacao["valor"]
-            print(f"{tipo}: R$ {valor:.2f}")
+            data = transacao["data"]
+            print(f"{tipo}: R$ {valor:.2f} em {data}")
     print(f"Saldo atual: R$ {conta.saldo:.2f}")
 
 def gerar_relatorio():
@@ -272,7 +288,7 @@ def gerar_relatorio():
 
     print("\n=== RELATÓRIO DE TRANSAÇÕES ===")
     for transacao in gerar_relatorio_transacoes(conta, tipo):
-        print(f"{transacao['tipo']}: R$ {transacao['valor']:.2f}")
+        print(f"{transacao['tipo']}: R$ {transacao['valor']:.2f} em {transacao['data']}")
 
 def listar_todas_contas():
     print("\n=== TODAS AS CONTAS DO BANCO ===")
