@@ -1,5 +1,15 @@
 from abc import ABC, abstractmethod
 
+# ===================== DECORADOR DE LOG =====================
+
+def log_transacoes(func):
+    def wrapper(*args, **kwargs):
+        print(f"[LOG] Executando {func.__name__} com args={args}, kwargs={kwargs}")
+        resultado = func(*args, **kwargs)
+        print(f"[LOG] Finalizou {func.__name__}")
+        return resultado
+    return wrapper
+
 # ===================== TRANSACOES =====================
 
 class Transacao(ABC):
@@ -106,7 +116,36 @@ class PessoaFisica(Cliente):
         self.cpf = cpf
         self.data_nascimento = data_nascimento
 
-# IMPORTAR TODAS AS CLASSES AQUI ou colocar no mesmo arquivo
+# ===================== GERADOR DE RELATÓRIO =====================
+
+def gerar_relatorio_transacoes(conta, tipo=None):
+    for transacao in conta.historico.transacoes:
+        if tipo is None or transacao["tipo"].lower() == tipo.lower():
+            yield transacao
+
+# ===================== ITERADOR PERSONALIZADO =====================
+
+class Contalterador:
+    def __init__(self, contas):
+        self._contas = contas
+        self._index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._index < len(self._contas):
+            conta = self._contas[self._index]
+            self._index += 1
+            return {
+                "numero": conta.numero,
+                "saldo": conta.saldo,
+                "cliente": conta.cliente.nome if hasattr(conta.cliente, "nome") else "Desconhecido"
+            }
+        else:
+            raise StopIteration
+
+# ===================== SISTEMA =====================
 
 clientes = []
 contas = []
@@ -156,6 +195,7 @@ def listar_contas_do_cliente(cliente):
         print(f"[{idx}] Conta Nº {conta.numero} | Saldo: R$ {conta.saldo:.2f}")
     return cliente.contas
 
+@log_transacoes
 def realizar_deposito():
     cpf = input("CPF do cliente: ").strip()
     cliente = buscar_cliente_por_cpf(cpf)
@@ -173,6 +213,7 @@ def realizar_deposito():
     transacao = Deposito(valor)
     cliente.realizar_transacao(conta, transacao)
 
+@log_transacoes
 def realizar_saque():
     cpf = input("CPF do cliente: ").strip()
     cliente = buscar_cliente_por_cpf(cpf)
@@ -214,6 +255,30 @@ def exibir_extrato():
             print(f"{tipo}: R$ {valor:.2f}")
     print(f"Saldo atual: R$ {conta.saldo:.2f}")
 
+def gerar_relatorio():
+    cpf = input("CPF do cliente: ").strip()
+    cliente = buscar_cliente_por_cpf(cpf)
+    if not cliente:
+        print("Cliente não encontrado.")
+        return
+
+    contas_cliente = listar_contas_do_cliente(cliente)
+    if not contas_cliente:
+        return
+
+    opcao = int(input("Escolha a conta: ")) - 1
+    conta = contas_cliente[opcao]
+    tipo = input("Filtrar por tipo (Deposito/Saque ou deixe em branco): ").strip() or None
+
+    print("\n=== RELATÓRIO DE TRANSAÇÕES ===")
+    for transacao in gerar_relatorio_transacoes(conta, tipo):
+        print(f"{transacao['tipo']}: R$ {transacao['valor']:.2f}")
+
+def listar_todas_contas():
+    print("\n=== TODAS AS CONTAS DO BANCO ===")
+    for info in Contalterador(contas):
+        print(f"Conta Nº {info['numero']} | Cliente: {info['cliente']} | Saldo: R$ {info['saldo']:.2f}")
+
 # ===================== MENU =========================
 
 while True:
@@ -223,6 +288,8 @@ while True:
     print("[3] Realizar Depósito")
     print("[4] Realizar Saque")
     print("[5] Exibir Extrato")
+    print("[6] Gerar Relatório de Transações")
+    print("[7] Listar Todas as Contas")
     print("[0] Sair")
 
     opcao = input("Escolha uma opção: ")
@@ -237,6 +304,10 @@ while True:
         realizar_saque()
     elif opcao == "5":
         exibir_extrato()
+    elif opcao == "6":
+        gerar_relatorio()
+    elif opcao == "7":
+        listar_todas_contas()
     elif opcao == "0":
         print("Saindo do sistema. Até logo!")
         break
